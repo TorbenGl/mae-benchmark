@@ -12,7 +12,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH --mem=12G
 #SBATCH --time=03:00:00
 #SBATCH --output=logs/mae-vit_s-bs64-h200full-%j.out
 #SBATCH --error=logs/mae-vit_s-bs64-h200full-%j.err

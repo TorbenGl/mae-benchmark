@@ -49,7 +49,7 @@ JOB1=$(sbatch --parsable \
     --partition="$FULL_PART" \
     --nodelist=node005 \
     --nodes=1 --ntasks-per-node=1 --gpus-per-task=1 \
-    --cpus-per-task=4 --mem=16G --time=0:10:00 \
+    --cpus-per-task=4 --mem=12G --time=0:10:00 \
     --output="$SCRIPT_DIR/logs/smoke-full-%j.out" \
     --error="$SCRIPT_DIR/logs/smoke-full-%j.err" \
     --wrap="source $VENV_DIR/bin/activate && \
@@ -73,7 +73,7 @@ JOB2=$(sbatch --parsable \
     --partition="$MIG_PART" \
     --nodelist=node006 \
     --nodes=1 --ntasks-per-node=1 --gres=gpu:1g.33gb:1 \
-    --cpus-per-task=4 --mem=16G --time=0:10:00 \
+    --cpus-per-task=4 --mem=12G --time=0:10:00 \
     --output="$SCRIPT_DIR/logs/smoke-mig-%j.out" \
     --error="$SCRIPT_DIR/logs/smoke-mig-%j.err" \
     --wrap="source $VENV_DIR/bin/activate && \

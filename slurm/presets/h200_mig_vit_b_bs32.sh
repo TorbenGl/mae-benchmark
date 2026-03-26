@@ -15,7 +15,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:1g.33gb:1
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
+#SBATCH --mem=12G
 #SBATCH --time=06:00:00
 #SBATCH --output=logs/mae-vit_b-bs32-h200mig-%j.out
 #SBATCH --error=logs/mae-vit_b-bs32-h200mig-%j.err
