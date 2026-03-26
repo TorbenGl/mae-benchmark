@@ -7,6 +7,22 @@ Benchmark variables:
   --model       mae_vit_small_patch16 | mae_vit_base_patch16 | mae_vit_large_patch16
   --batch_size  per-GPU batch size
 
+Dataset:
+  --data_path   local folder of a HuggingFace dataset (downloaded with snapshot_download
+                or datasets.save_to_disk).  Two loading modes are tried in order:
+                  1. datasets.load_from_disk(data_path)   — Arrow / .save_to_disk() layout
+                  2. datasets.load_dataset(data_path)     — parquet-shard / HF repo layout
+  --hf_split    dataset split to use (default: "train")
+  --image_col   column name for images (default: "image"; use "jpg" for imagenet-w21-wds)
+  --label_col   column name for labels (default: "label"; use "cls" for imagenet-w21-wds)
+
+Duration:
+  --max_steps   pure step-based training (recommended for benchmarks); set > 0 to activate.
+                When set, --epochs is ignored.
+  --epochs      epoch-based training (fallback when --max_steps <= 0)
+  --warmup_steps  LR warmup in steps (takes priority over --warmup_epochs when > 0)
+  --warmup_epochs LR warmup in epochs (fallback)
+
 W&B:
   Project : mae-slurm-benchmark
   Run name: {arch}-bs{batch_size}-{gpu_label}
@@ -14,14 +30,16 @@ W&B:
 """
 
 import argparse
+import io
 import math
 import os
 import time
 from pathlib import Path
 
 import torch
-import torchvision.datasets as datasets
 import torchvision.transforms as transforms
+from PIL import Image as PILImage
+from datasets import load_dataset, load_from_disk, DatasetDict
 import lightning as L
 from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import WandbLogger
@@ -93,6 +111,7 @@ class MAEBenchmarkModule(L.LightningModule):
         blr: float,
         min_lr: float,
         weight_decay: float,
+        warmup_steps: int,
         warmup_epochs: int,
         epochs: int,
         mask_ratio: float,
@@ -123,9 +142,17 @@ class MAEBenchmarkModule(L.LightningModule):
         )
         optimizer = torch.optim.AdamW(param_groups, lr=lr, betas=(0.9, 0.95))
 
+        # estimated_stepping_batches respects max_steps when set in Trainer,
+        # otherwise uses max_epochs × steps_per_epoch from the dataset length.
         total_steps = self.trainer.estimated_stepping_batches
-        steps_per_epoch = max(total_steps // max(self.hparams.epochs, 1), 1)
-        warmup_steps = self.hparams.warmup_epochs * steps_per_epoch
+
+        # warmup_steps (direct) takes priority over warmup_epochs × steps/epoch
+        if self.hparams.warmup_steps > 0:
+            warmup_steps = self.hparams.warmup_steps
+        else:
+            steps_per_epoch = max(total_steps // max(self.hparams.epochs, 1), 1)
+            warmup_steps = self.hparams.warmup_epochs * steps_per_epoch
+
         min_lr_ratio = self.hparams.min_lr / lr if lr > 0 else 0.0
 
         def lr_lambda(step: int) -> float:
@@ -146,29 +173,83 @@ class MAEBenchmarkModule(L.LightningModule):
 # DataModule
 # ---------------------------------------------------------------------------
 
-class ImageNetDataModule(L.LightningDataModule):
-    """Loads ImageFolder dataset from data_path/train."""
+class _HFImageDataset(torch.utils.data.Dataset):
+    """Thin wrapper that makes a HuggingFace Dataset behave like a torch Dataset.
 
-    def __init__(self, data_path: str, batch_size: int, num_workers: int, input_size: int):
+    Each __getitem__ decodes the image column (PIL Image or raw JPEG bytes),
+    applies the transform, and returns (tensor, label) — the same tuple format
+    as torchvision.datasets.ImageFolder.
+    """
+
+    def __init__(self, hf_dataset, transform, image_col: str, label_col: str):
+        self.dataset = hf_dataset
+        self.transform = transform
+        self.image_col = image_col
+        self.label_col = label_col
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        item = self.dataset[idx]
+        img = item[self.image_col]
+        if isinstance(img, (bytes, bytearray)):
+            img = PILImage.open(io.BytesIO(img)).convert("RGB")
+        elif isinstance(img, PILImage.Image):
+            img = img.convert("RGB")
+        else:
+            img = PILImage.fromarray(img).convert("RGB")
+        return self.transform(img), item[self.label_col]
+
+
+class HFDataModule(L.LightningDataModule):
+    """Loads a locally-saved HuggingFace dataset for MAE pre-training.
+
+    Two loading modes are tried in order:
+      1. load_from_disk(data_path)  — Arrow dataset saved with .save_to_disk()
+      2. load_dataset(data_path)    — HF-format folder with parquet shards
+
+    Column name defaults match standard HF image datasets (e.g. imagenet-1k).
+    For timm/imagenet-w21-wds pass: --image_col jpg --label_col cls
+    """
+
+    def __init__(
+        self,
+        data_path: str,
+        batch_size: int,
+        num_workers: int,
+        input_size: int,
+        split: str = "train",
+        image_col: str = "image",
+        label_col: str = "label",
+    ):
         super().__init__()
         self.data_path = data_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.input_size = input_size
+        self.split = split
+        self.image_col = image_col
+        self.label_col = label_col
 
     def setup(self, stage=None):
+        try:
+            ds = load_from_disk(self.data_path)
+            if isinstance(ds, DatasetDict):
+                ds = ds[self.split]
+        except Exception:
+            ds = load_dataset(self.data_path, split=self.split, trust_remote_code=True)
+
         transform = transforms.Compose([
             transforms.RandomResizedCrop(self.input_size, scale=(0.2, 1.0), interpolation=3),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
-        self.dataset_train = datasets.ImageFolder(
-            os.path.join(self.data_path, "train"), transform=transform
-        )
+        self.dataset_train = _HFImageDataset(ds, transform, self.image_col, self.label_col)
 
     def train_dataloader(self):
-        # Lightning automatically wraps with DistributedSampler when using DDP
+        # Lightning automatically replaces the random sampler with DistributedSampler for DDP.
         return torch.utils.data.DataLoader(
             self.dataset_train,
             batch_size=self.batch_size,
@@ -196,12 +277,17 @@ def get_args_parser():
     parser.add_argument("--norm_pix_loss", action="store_true",
                         help="Use per-patch normalized pixels as targets")
 
-    # Training
+    # Training duration — max_steps mode (> 0) overrides epochs mode
     parser.add_argument("--batch_size", default=64, type=int, help="Batch size per GPU")
+    parser.add_argument("--max_steps", default=-1, type=int,
+                        help="Train for exactly this many steps (recommended for benchmarks). "
+                             "Set > 0 to activate; ignores --epochs when set.")
     parser.add_argument("--epochs", default=10, type=int,
-                        help="Number of epochs (10 gives stable benchmark measurements)")
+                        help="Number of epochs — used when --max_steps <= 0")
+    parser.add_argument("--warmup_steps", default=0, type=int,
+                        help="LR warmup in steps. Takes priority over --warmup_epochs when > 0.")
     parser.add_argument("--warmup_epochs", default=2, type=int,
-                        help="LR warmup epochs (keep short for benchmarks)")
+                        help="LR warmup epochs — used when --warmup_steps == 0")
 
     # Optimizer
     parser.add_argument("--blr", default=1e-3, type=float,
@@ -211,7 +297,13 @@ def get_args_parser():
 
     # Data
     parser.add_argument("--data_path", default=os.environ.get("DATA_PATH", "/datasets/imagenet"),
-                        type=str)
+                        type=str, help="Local folder of a HuggingFace dataset")
+    parser.add_argument("--hf_split", default="train", type=str,
+                        help="Dataset split to load (default: train)")
+    parser.add_argument("--image_col", default="image", type=str,
+                        help="Image column name (use 'jpg' for timm/imagenet-w21-wds)")
+    parser.add_argument("--label_col", default="label", type=str,
+                        help="Label column name (use 'cls' for timm/imagenet-w21-wds)")
     parser.add_argument("--num_workers", default=8, type=int)
 
     # Output / logging
@@ -236,6 +328,14 @@ def get_args_parser():
 # ---------------------------------------------------------------------------
 
 def main(args):
+    use_max_steps = args.max_steps > 0
+    if use_max_steps and args.warmup_steps == 0 and args.warmup_epochs > 0:
+        # warmup_epochs is meaningless without a fixed dataset size; require warmup_steps
+        raise ValueError(
+            "--max_steps mode requires --warmup_steps (got --warmup_epochs which has no "
+            "fixed meaning when epochs are unlimited). Pass --warmup_steps instead."
+        )
+
     L.seed_everything(args.seed)
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -243,8 +343,6 @@ def main(args):
         print("WARNING: WANDB_API_KEY not set. W&B will fall back to offline mode or "
               "use a cached login (run `wandb login` once on this machine).")
 
-    # Build W&B run name: {arch_short}-bs{batch_size}-{gpu_label}
-    # e.g. mae_vit_base_patch16 -> vit_b
     arch_short = (args.model
                   .replace("mae_vit_", "vit_")
                   .replace("_patch16", "")
@@ -264,21 +362,26 @@ def main(args):
         blr=args.blr,
         min_lr=args.min_lr,
         weight_decay=args.weight_decay,
+        warmup_steps=args.warmup_steps,
         warmup_epochs=args.warmup_epochs,
         epochs=args.epochs,
         mask_ratio=args.mask_ratio,
         norm_pix_loss=args.norm_pix_loss,
     )
 
-    datamodule = ImageNetDataModule(
+    datamodule = HFDataModule(
         data_path=args.data_path,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         input_size=args.input_size,
+        split=args.hf_split,
+        image_col=args.image_col,
+        label_col=args.label_col,
     )
 
     trainer = L.Trainer(
-        max_epochs=args.epochs,
+        max_steps=args.max_steps if use_max_steps else -1,
+        max_epochs=-1 if use_max_steps else args.epochs,
         precision=args.precision,
         logger=wandb_logger,
         callbacks=[
