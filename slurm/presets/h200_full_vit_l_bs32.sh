@@ -7,6 +7,7 @@
 # =============================================================================
 #SBATCH --job-name=mae-vit_l-bs32-h200full
 #SBATCH --partition=H200_FULL_PARTITION_NAME
+#SBATCH --nodelist=node005
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1

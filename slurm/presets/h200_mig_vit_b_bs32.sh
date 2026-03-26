@@ -10,9 +10,10 @@
 # =============================================================================
 #SBATCH --job-name=mae-vit_b-bs32-h200mig
 #SBATCH --partition=H200_MIG_PARTITION_NAME
+#SBATCH --nodelist=node006
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --gpus-per-task=1
+#SBATCH --gres=gpu:1g.33gb:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=06:00:00
