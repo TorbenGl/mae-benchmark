@@ -25,7 +25,7 @@
 set -euo pipefail
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 VENV_DIR="${VENV_PATH:-$REPO_DIR/.venv}"
-DATA_PATH="${DATA_PATH:-/datasets/imagenet}"
+DATA_PATH="${DATA_PATH:-/datasets/imagenet21k}"
 
 source "$VENV_DIR/bin/activate"
 echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
@@ -33,8 +33,8 @@ echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
 python "$REPO_DIR/train_benchmark.py" \
     --model mae_vit_large_patch16 \
     --batch_size 16 \
-    --epochs 10 \
-    --warmup_epochs 2 \
+    --max_steps 200 \
+    --warmup_epochs 0 \
     --blr 1e-3 \
     --data_path "$DATA_PATH" \
     --output_dir "$REPO_DIR/outputs/h200_mig_vit_l_bs16" \
