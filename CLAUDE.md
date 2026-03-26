@@ -38,7 +38,8 @@ Only work within this directory (`mae-benchmark/`). Do not reference or modify f
 
 - Development: Windows (no CUDA packages — `nvidia-*-cu12` and `triton` are Linux-only, marked with `; sys_platform == "linux"` in requirements.txt)
 - Training / benchmarking runs on Linux with CUDA
-- Install: `uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu126 --index-strategy unsafe-best-match`
+- Install: `uv pip install -r requirements.txt` — PyTorch wheel index is embedded in `requirements.txt` via `--index-url`, no extra flags needed
+- Dataset: ImageNet-21k (`/datasets/imagenet21k` default); column names `image` / `label` (standard HF format)
 
 ## Compatibility Notes (PyTorch 2.8 + timm ≥ 0.9)
 
@@ -52,3 +53,23 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 ## Benchmark Architecture
 
 `train_benchmark.py` uses PyTorch Lightning (`MAEBenchmarkModule` + `BenchmarkCallback`) wrapping the existing `MaskedAutoencoderViT`. W&B run names follow `{arch}-bs{batch_size}-{gpu_label}`. SBATCH presets are in `slurm/presets/` with partition name placeholders (`H200_FULL_PARTITION_NAME`, `H200_MIG_PARTITION_NAME`) replaced via `bash slurm/submit_all.sh --configure`.
+
+Presets use `--max_steps 200 --warmup_epochs 0` for step-based timing probes (dataset size-independent). Use `--fast_dev_run` for a single-batch sanity check without real training.
+
+## Benchmark Workflow
+
+```bash
+# 1. Configure partition names (once)
+export H200_FULL_PART=your_partition
+export H200_MIG_PART=your_mig_partition
+bash slurm/submit_all.sh --configure
+
+# 2. Smoke test — 2 jobs, 1 batch each, 10-min limit
+export DATA_PATH=/datasets/imagenet21k
+bash slurm/smoke_test.sh
+
+# 3. Fire all 12 presets
+bash slurm/submit_all.sh
+```
+
+`slurm/smoke_test.sh` submits one ViT-S job per GPU type using `--fast_dev_run`. Verify both complete before running all 12.

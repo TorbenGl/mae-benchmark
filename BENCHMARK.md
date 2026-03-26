@@ -107,6 +107,7 @@ All `perf/*` and `gpu/*` metrics are logged from rank-0 only to avoid duplicates
 | `slurm/presets/h200_full_*.sh` | SBATCH presets for full H200 GPU |
 | `slurm/presets/h200_mig_*.sh` | SBATCH presets for H200 MIG instance |
 | `slurm/submit_all.sh` | Submit all 12 presets at once |
+| `slurm/smoke_test.sh` | Pre-flight check: 2 jobs (1 full H200 + 1 MIG) with `--fast_dev_run` |
 | `BENCHMARK.md` | This document |
 
 ### Modified files
@@ -190,22 +191,38 @@ MIG slices have ~10 GB, so batch sizes are reduced accordingly.
 
 ```bash
 # 1. Install dependencies (on Linux cluster)
-uv pip install -r requirements.txt \
-  --extra-index-url https://download.pytorch.org/whl/cu126 \
-  --index-strategy unsafe-best-match
+#    PyTorch wheel index is embedded in requirements.txt — no extra flags needed
+uv pip install -r requirements.txt
 
 # 2. Set W&B API key
 export WANDB_API_KEY=your_key_here
 
-# 3. Set partition names
+# 3. Configure partition names (replaces placeholders in all preset scripts)
 export H200_FULL_PART=h200          # your actual partition
 export H200_MIG_PART=h200-mig       # your actual MIG partition
-sed -i "s/H200_FULL_PARTITION_NAME/$H200_FULL_PART/g" slurm/presets/h200_full_*.sh
-sed -i "s/H200_MIG_PARTITION_NAME/$H200_MIG_PART/g"   slurm/presets/h200_mig_*.sh
+bash slurm/submit_all.sh --configure
 
-# 4. Set your data path (edit the scripts or set this env var)
-#    The scripts default to $DATA_PATH or /datasets/imagenet
-export DATA_PATH=/path/to/imagenet
+# 4. Set your ImageNet-21k data path
+#    Scripts default to $DATA_PATH or /datasets/imagenet21k
+export DATA_PATH=/datasets/imagenet21k
+```
+
+### Smoke test (run before submitting all jobs)
+
+Before firing all 12 presets, verify partition names, data path, and Python environment with a 2-job smoke test. Each job runs `--fast_dev_run` (1 batch only) with a 10-minute time limit:
+
+```bash
+bash slurm/smoke_test.sh
+```
+
+Check logs in `slurm/logs/smoke-full-<job_id>.out` and `slurm/logs/smoke-mig-<job_id>.out`. Both should exit cleanly before proceeding.
+
+> **Failure modes:** If `sbatch` itself fails (bad partition name, missing `logs/` dir), `submit_all.sh` stops immediately due to `set -euo pipefail` — no jobs are submitted. If a job starts but crashes (bad data path, OOM, import error), only that job fails; others are unaffected.
+
+### Run all presets
+
+```bash
+bash slurm/submit_all.sh
 ```
 
 ### Run a single preset
@@ -214,40 +231,31 @@ export DATA_PATH=/path/to/imagenet
 sbatch slurm/presets/h200_full_vit_b_bs256.sh
 ```
 
-### Run all presets
-
-```bash
-bash slurm/submit_all.sh
-```
-
-### Quick test (no real data required — uses a synthetic dataset)
-
-```bash
-python train_benchmark.py \
-  --model mae_vit_base_patch16 \
-  --batch_size 32 \
-  --epochs 2 \
-  --data_path /path/to/imagenet \
-  --gpu_label test \
-  --fast_dev_run
-```
-
-`--fast_dev_run` runs 1 batch per epoch using Lightning's sanity check mode.
-
 ### Manual run (full control)
 
 ```bash
 python train_benchmark.py \
-  --model mae_vit_base_patch16 \  # mae_vit_small_patch16 | mae_vit_base_patch16 | mae_vit_large_patch16
+  --model mae_vit_base_patch16 \
   --batch_size 256 \
-  --epochs 10 \
-  --warmup_epochs 2 \
+  --max_steps 200 \
+  --warmup_epochs 0 \
   --blr 1e-3 \
-  --data_path /datasets/imagenet \
+  --data_path /datasets/imagenet21k \
   --output_dir ./outputs/vit_b_bs256 \
   --gpu_label h200_full \
   --precision 16-mixed \
   --num_workers 8
+```
+
+Use `--fast_dev_run` instead of `--max_steps` for a single-batch sanity check:
+
+```bash
+python train_benchmark.py \
+  --model mae_vit_small_patch16 \
+  --batch_size 64 \
+  --data_path /datasets/imagenet21k \
+  --gpu_label test \
+  --fast_dev_run
 ```
 
 ---

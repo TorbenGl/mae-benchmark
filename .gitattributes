@@ -1,0 +1,5 @@
+# Always use LF for shell scripts — they run on Linux (SLURM cluster)
+*.sh text eol=lf
+
+# Default: let Git handle line endings normally for everything else
+* text=auto
