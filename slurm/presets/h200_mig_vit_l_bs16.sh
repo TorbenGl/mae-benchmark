@@ -5,14 +5,14 @@
 # WARNING: ViT-L at batch=16 may be close to the 10GB MIG memory limit.
 # If this OOMs, reduce to batch=8 or use the bs4 preset instead.
 #
-# BEFORE SUBMITTING: replace H200_MIG_PARTITION_NAME with your MIG partition.
-#   sed -i 's/H200_MIG_PARTITION_NAME/your_partition/' h200_mig_vit_l_bs16.sh
+# BEFORE SUBMITTING: replace gpu-node with your MIG partition.
+#   sed -i 's/gpu-node/your_partition/' h200_mig_vit_l_bs16.sh
 #
 # MIG note: if your cluster uses gres instead of partitions for MIG, add:
 #   #SBATCH --gres=gpu:1g.10gb:1
 # =============================================================================
 #SBATCH --job-name=mae-vit_l-bs16-h200mig
-#SBATCH --partition=H200_MIG_PARTITION_NAME
+#SBATCH --partition=gpu-node
 #SBATCH --nodelist=node006
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

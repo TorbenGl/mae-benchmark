@@ -2,11 +2,11 @@
 # =============================================================================
 # MAE SLURM Benchmark — ViT-Small, batch=64, Full H200 (80 GB)
 #
-# BEFORE SUBMITTING: replace H200_FULL_PARTITION_NAME with your partition.
-#   sed -i 's/H200_FULL_PARTITION_NAME/your_partition/' h200_full_vit_s_bs64.sh
+# BEFORE SUBMITTING: replace gpu-node with your partition.
+#   sed -i 's/gpu-node/your_partition/' h200_full_vit_s_bs64.sh
 # =============================================================================
 #SBATCH --job-name=mae-vit_s-bs64-h200full
-#SBATCH --partition=H200_FULL_PARTITION_NAME
+#SBATCH --partition=gpu-node
 #SBATCH --nodelist=node005
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
