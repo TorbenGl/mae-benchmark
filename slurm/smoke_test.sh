@@ -47,6 +47,7 @@ echo ""
 JOB1=$(sbatch --parsable \
     --job-name=mae-smoke-full \
     --partition="$FULL_PART" \
+    --nodelist=node005 \
     --nodes=1 --ntasks-per-node=1 --gpus-per-task=1 \
     --cpus-per-task=4 --mem=16G --time=0:10:00 \
     --output="$SCRIPT_DIR/logs/smoke-full-%j.out" \
@@ -70,7 +71,8 @@ echo "  Submitted full H200 smoke job -> $JOB1"
 JOB2=$(sbatch --parsable \
     --job-name=mae-smoke-mig \
     --partition="$MIG_PART" \
-    --nodes=1 --ntasks-per-node=1 --gpus-per-task=1 \
+    --nodelist=node006 \
+    --nodes=1 --ntasks-per-node=1 --gres=gpu:1g.33gb:1 \
     --cpus-per-task=4 --mem=16G --time=0:10:00 \
     --output="$SCRIPT_DIR/logs/smoke-mig-%j.out" \
     --error="$SCRIPT_DIR/logs/smoke-mig-%j.err" \
