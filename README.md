@@ -1,5 +1,7 @@
 ## Masked Autoencoders: A PyTorch Implementation
 
+> **SLURM Benchmark Extension** — this fork adds a `train_benchmark.py` entry point (PyTorch Lightning + W&B) for measuring cluster performance across model sizes and batch sizes. See [Benchmark Quick Start](#benchmark-quick-start) below or the full [BENCHMARK.md](BENCHMARK.md).
+
 <p align="center">
   <img src="https://user-images.githubusercontent.com/11435359/146857310-f258c86c-fde6-48e8-9cee-badd2b21bd2c.png" width="480">
 </p>
@@ -150,6 +152,75 @@ By fine-tuning these pre-trained models, we rank #1 in these classification task
 ### Pre-training
 
 The pre-training instruction is in [PRETRAIN.md](PRETRAIN.md).
+
+---
+
+## Benchmark Quick Start
+
+This fork adds SLURM cluster performance benchmarking on top of the original MAE codebase.
+
+**Benchmark variables:** model size (`vit_s` / `vit_b` / `vit_l`) × per-GPU batch size
+**GPU targets:** H200 full (80 GB) and H200 MIG (~10 GB slice)
+**Logging:** W&B project `mae-slurm-benchmark`, metrics include throughput, step time, GPU memory
+
+### Install
+
+```bash
+uv pip install -r requirements.txt \
+  --extra-index-url https://download.pytorch.org/whl/cu126 \
+  --index-strategy unsafe-best-match
+```
+
+### Set up W&B
+
+```bash
+export WANDB_API_KEY=your_api_key_here
+```
+
+### Run a single benchmark job
+
+```bash
+python train_benchmark.py \
+  --model mae_vit_base_patch16 \
+  --batch_size 256 \
+  --epochs 10 \
+  --data_path /datasets/imagenet \
+  --gpu_label h200_full
+```
+
+### Run all 12 SBATCH presets
+
+```bash
+# 1. Set your partition names
+export H200_FULL_PART=your_h200_partition
+export H200_MIG_PART=your_mig_partition
+bash slurm/submit_all.sh --configure
+
+# 2. Submit all
+export DATA_PATH=/datasets/imagenet
+bash slurm/submit_all.sh
+```
+
+### Available models
+
+| Arg | Arch | Params |
+|---|---|---|
+| `mae_vit_small_patch16` | ViT-S | ~22 M |
+| `mae_vit_base_patch16` | ViT-B | ~86 M |
+| `mae_vit_large_patch16` | ViT-L | ~307 M |
+
+### Key W&B metrics
+
+| Metric | Description |
+|---|---|
+| `perf/throughput_imgs_per_sec` | Images/sec (primary cluster perf signal) |
+| `perf/step_time_ms` | Wall-clock time per fwd+bwd+optimizer step |
+| `gpu/memory_allocated_gb` | Torch-allocated VRAM |
+| `train/loss` | MAE reconstruction loss (sanity check) |
+
+Full documentation: [BENCHMARK.md](BENCHMARK.md)
+
+---
 
 ### License
 
