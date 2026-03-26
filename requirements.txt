@@ -1,6 +1,5 @@
 --index-url https://pypi.org/simple
 --extra-index-url https://download.pytorch.org/whl/cu126
---index-strategy unsafe-best-match
 
 aiohappyeyeballs==2.6.1
 lightning>=2.3.0

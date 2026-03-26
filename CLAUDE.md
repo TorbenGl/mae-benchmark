@@ -38,7 +38,7 @@ Only work within this directory (`mae-benchmark/`). Do not reference or modify f
 
 - Development: Windows (no CUDA packages — `nvidia-*-cu12` and `triton` are Linux-only, marked with `; sys_platform == "linux"` in requirements.txt)
 - Training / benchmarking runs on Linux with CUDA
-- Install: `uv pip install -r requirements.txt` — PyTorch wheel index is embedded in `requirements.txt` via `--index-url`, no extra flags needed
+- Install: `uv pip install --index-strategy unsafe-best-match -r requirements.txt` — PyTorch wheel index is embedded via `--index-url`; `--index-strategy unsafe-best-match` is required (resolves `torch+cu126` from the PyTorch index) but cannot be set inside requirements.txt
 - Dataset: ImageNet-21k (`/datasets/imagenet21k` default); column names `image` / `label` (standard HF format)
 
 ## Compatibility Notes (PyTorch 2.8 + timm ≥ 0.9)
