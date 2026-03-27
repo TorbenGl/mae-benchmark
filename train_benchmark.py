@@ -236,9 +236,10 @@ class HFDataModule(L.LightningDataModule):
         try:
             ds = load_from_disk(self.data_path)
             if isinstance(ds, DatasetDict):
-                ds = ds[self.split]
+                from datasets import concatenate_datasets
+                ds = concatenate_datasets(list(ds.values()))
         except Exception:
-            ds = load_dataset(self.data_path, split=self.split, trust_remote_code=True)
+            ds = load_dataset(self.data_path, split="all", trust_remote_code=False)
 
         transform = transforms.Compose([
             transforms.RandomResizedCrop(self.input_size, scale=(0.2, 1.0), interpolation=3),
@@ -312,7 +313,7 @@ def get_args_parser():
                         help="GPU type label appended to W&B run name (e.g. h200_full, h200_mig)")
 
     # Hardware / precision
-    parser.add_argument("--precision", default="16-mixed", type=str,
+    parser.add_argument("--precision", default="bf16-mixed", type=str,
                         choices=["32", "16-mixed", "bf16-mixed"])
     parser.add_argument("--seed", default=42, type=int)
 
@@ -336,6 +337,7 @@ def main(args):
             "fixed meaning when epochs are unlimited). Pass --warmup_steps instead."
         )
 
+    torch.set_float32_matmul_precision("high")
     L.seed_everything(args.seed)
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 

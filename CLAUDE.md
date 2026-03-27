@@ -73,3 +73,15 @@ bash slurm/submit_all.sh
 ```
 
 `slurm/smoke_test.sh` submits one ViT-S job per GPU type using `--fast_dev_run`. Verify both complete before running all 12.
+
+## Dataset Cache (run once before benchmarking)
+
+HuggingFace datasets builds an Arrow index cache on first load of a Parquet-shard dataset. For ImageNet-21k (~948k examples) this takes ~10 minutes — long enough to exhaust the smoke test time limit before any training starts. Run this **once** in an interactive session before submitting any SLURM jobs:
+
+```bash
+python prebuild_dataset_cache.py
+# or with a custom path:
+python prebuild_dataset_cache.py --data_path /datasets/imagenet21k
+```
+
+The default path is `~/imagenet21k` (set `DEFAULT_DATA_PATH` in the script to change it permanently). After the cache is built, subsequent loads are near-instant and SLURM jobs will not time out waiting for indexing.
