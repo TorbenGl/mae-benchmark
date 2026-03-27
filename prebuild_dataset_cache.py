@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import os
 import time
 
 # ── configurable default ──────────────────────────────────────────────────────
@@ -28,6 +29,7 @@ def main():
         help=f"Path to the local HF dataset directory (default: {DEFAULT_DATA_PATH})",
     )
     args = parser.parse_args()
+    args.data_path = os.path.expanduser(args.data_path)
 
     from datasets import DatasetDict, load_dataset, load_from_disk
 
