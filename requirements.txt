@@ -3,6 +3,7 @@
 
 aiohappyeyeballs==2.6.1
 lightning>=2.3.0
+submitit
 timm>=0.9.0
 wandb
 aiohttp==3.13.3
