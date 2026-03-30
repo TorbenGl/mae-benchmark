@@ -122,9 +122,10 @@ class MAEBenchmarkModule(L.LightningModule):
         self.model = models_mae.__dict__[model_name](norm_pix_loss=norm_pix_loss)
 
     def on_train_start(self):
+        import wandb
         n_params = sum(p.numel() for p in self.model.parameters()) / 1e6
-        if self.logger:
-            self.logger.experiment.summary.update({"model_params_M": round(n_params, 1)})
+        if wandb.run is not None:
+            wandb.run.summary["model_params_M"] = round(n_params, 1)
 
     def training_step(self, batch, batch_idx):
         images, _ = batch
