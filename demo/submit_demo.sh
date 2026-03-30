@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=4       # 4 CPUs per task
 #SBATCH --mem=2G
 #SBATCH --time=00:05:00
-#SBATCH --array=2          # 6 jobs, max 4 running in parallel (2 queue)
+#SBATCH --array=1-2          # 6 jobs, max 4 running in parallel (2 queue)
 #SBATCH --output=demo/logs/task_%A_%a.out
 #SBATCH --error=demo/logs/task_%A_%a.err
 
