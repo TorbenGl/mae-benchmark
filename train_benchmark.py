@@ -124,7 +124,7 @@ class MAEBenchmarkModule(L.LightningModule):
     def on_train_start(self):
         n_params = sum(p.numel() for p in self.model.parameters()) / 1e6
         if self.logger:
-            self.logger.experiment.summary["model_params_M"] = round(n_params, 1)
+            self.logger.experiment.summary.update({"model_params_M": round(n_params, 1)})
 
     def training_step(self, batch, batch_idx):
         images, _ = batch
