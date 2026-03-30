@@ -72,7 +72,7 @@ JOB2=$(sbatch --parsable \
     --job-name=mae-smoke-mig \
     --partition="$MIG_PART" \
     --nodelist=node006 \
-    --nodes=1 --ntasks-per-node=1 --gres=gpu:3g.71gb:1 \
+    --nodes=1 --ntasks-per-node=1 --gres=gpu:1g.16gb:1 \
     --cpus-per-task=4 --mem=12G --time=0:10:00 \
     --output="$SCRIPT_DIR/logs/smoke-mig-%j.out" \
     --error="$SCRIPT_DIR/logs/smoke-mig-%j.err" \
