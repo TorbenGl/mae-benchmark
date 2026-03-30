@@ -4,7 +4,7 @@ Two ways to run `demo/worker.py` on a compute node.
 
 ---
 
-## Option 1 — sbatch (fire and forget)
+## Option 1 — sbatch (fire and forget) 
 
 Submit the job array and let SLURM schedule it:
 
