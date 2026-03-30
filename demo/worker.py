@@ -18,4 +18,6 @@ workload = 10_000_000 + task_id * 5_000_000
 result = sum(math.sqrt(i) for i in range(1, workload))
 
 print(f"[Task {task_id}] Computed sum-of-sqrt up to {workload:,} → {result:.4f}")
+
+
 print(f"[Task {task_id}] Done.")
