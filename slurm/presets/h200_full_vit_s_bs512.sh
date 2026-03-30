@@ -35,4 +35,5 @@ python "$REPO_DIR/train_benchmark.py" \
     --output_dir "$REPO_DIR/outputs/h200_full_vit_s_bs512" \
     --gpu_label h200_full \
     --precision 16-mixed \
-    --num_workers 8
+    --num_workers 8 \
+    --image_col jpg --label_col cls

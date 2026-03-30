@@ -64,6 +64,7 @@ JOB1=$(sbatch --parsable \
                 --gpu_label h200_full \
                 --precision 16-mixed \
                 --num_workers 4 \
+                --image_col jpg --label_col cls \
                 --fast_dev_run")
 echo "  Submitted full H200 smoke job -> $JOB1"
 
@@ -88,6 +89,7 @@ JOB2=$(sbatch --parsable \
                 --gpu_label h200_mig \
                 --precision 16-mixed \
                 --num_workers 4 \
+                --image_col jpg --label_col cls \
                 --fast_dev_run")
 echo "  Submitted MIG smoke job       -> $JOB2"
 
