@@ -1,61 +1,44 @@
 #!/bin/bash
 # =============================================================================
-# Submit all 12 MAE benchmark presets to SLURM.
+# Submit all 12 locality benchmark presets to SLURM.
 #
-# SETUP (run once before submitting):
-#   1. Set your partition names:
-#        export H200_FULL_PART=your_h200_full_partition
-#        export H200_MIG_PART=your_h200_mig_partition
-#        bash slurm/submit_all.sh --configure
+# PREREQUISITES:
+#   1. Undrain node005 if needed (it may be drained after a job failure):
+#        scontrol update nodename=node005 state=resume
 #
 #   2. Set your W&B key (if not already in ~/.bashrc):
 #        export WANDB_API_KEY=your_key_here
 #
 #   3. Set your ImageNet path:
-#        export DATA_PATH=/path/to/imagenet
+#        export DATA_PATH=/datasets/imagenet21k
 #
 #   4. Submit:
 #        bash slurm/submit_all.sh
+#
+# Presets: ViT-Base, batch sizes 32/64/128/256/512/1024, on node005 and node007.
+# Both nodes use partition: gpu-node
+# See slurm/USAGE.md for full details.
 # =============================================================================
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PRESETS_DIR="$SCRIPT_DIR/presets"
-
-# --configure: apply partition names to all scripts
-if [[ "${1:-}" == "--configure" ]]; then
-    if [[ -z "${H200_FULL_PART:-}" || -z "${H200_MIG_PART:-}" ]]; then
-        echo "ERROR: set H200_FULL_PART and H200_MIG_PART before running --configure"
-        exit 1
-    fi
-    sed -i "s/H200_FULL_PARTITION_NAME/$H200_FULL_PART/g" "$PRESETS_DIR"/h200_full_*.sh
-    sed -i "s/H200_MIG_PARTITION_NAME/$H200_MIG_PART/g"   "$PRESETS_DIR"/h200_mig_*.sh
-    echo "Partition names applied."
-    echo "  Full H200 partition : $H200_FULL_PART"
-    echo "  MIG  H200 partition : $H200_MIG_PART"
-    exit 0
-fi
-
-# Guard: warn if placeholders are still present
-if grep -qr "PARTITION_NAME" "$PRESETS_DIR" 2>/dev/null; then
-    echo "ERROR: Partition placeholders not yet replaced."
-    echo "Run:  bash slurm/submit_all.sh --configure"
-    exit 1
-fi
+PRESETS_DIR="$SCRIPT_DIR/presets/locality"
 
 mkdir -p "$SCRIPT_DIR/logs"
 
-echo "Submitting 12 MAE benchmark presets..."
+echo "Submitting 12 locality benchmark presets..."
+echo "  node005 (remote storage): 6 jobs"
+echo "  node007 (local storage):  6 jobs"
 echo ""
 
 submitted=0
 for script in \
-    h200_full_vit_s_bs64.sh  h200_full_vit_s_bs512.sh \
-    h200_full_vit_b_bs64.sh  h200_full_vit_b_bs256.sh \
-    h200_full_vit_l_bs32.sh  h200_full_vit_l_bs128.sh \
-    h200_mig_vit_s_bs16.sh   h200_mig_vit_s_bs64.sh  \
-    h200_mig_vit_b_bs8.sh    h200_mig_vit_b_bs32.sh  \
-    h200_mig_vit_l_bs4.sh    h200_mig_vit_l_bs16.sh  ; do
+    locality_node005_vit_b_bs32.sh   locality_node005_vit_b_bs64.sh  \
+    locality_node005_vit_b_bs128.sh  locality_node005_vit_b_bs256.sh \
+    locality_node005_vit_b_bs512.sh  locality_node005_vit_b_bs1024.sh \
+    locality_node007_vit_b_bs32.sh   locality_node007_vit_b_bs64.sh  \
+    locality_node007_vit_b_bs128.sh  locality_node007_vit_b_bs256.sh \
+    locality_node007_vit_b_bs512.sh  locality_node007_vit_b_bs1024.sh ; do
 
     path="$PRESETS_DIR/$script"
     job_id=$(sbatch --parsable "$path")

@@ -36,6 +36,12 @@ import os
 import time
 from pathlib import Path
 
+try:
+    import pynvml as _pynvml
+    _PYNVML_AVAILABLE = True
+except ImportError:
+    _PYNVML_AVAILABLE = False
+
 import torch
 import torchvision.transforms as transforms
 from PIL import Image as PILImage
@@ -54,15 +60,39 @@ import models_mae
 # ---------------------------------------------------------------------------
 
 class BenchmarkCallback(L.Callback):
-    """Measures wall-clock throughput and GPU memory usage per training step.
+    """Measures wall-clock throughput, GPU memory, I/O wait, and GPU utilization.
 
     Timing spans from on_train_batch_start to on_train_batch_end, which covers
     the full forward → backward → optimizer step (Lightning internals included).
     torch.cuda.synchronize() is called at both boundaries so CUDA work is
     complete before the clock reads.
+
+    DataLoader idle time (io/dataloader_wait_ms) is the wall-clock gap between
+    on_train_batch_end and the next on_train_batch_start — i.e. how long the GPU
+    waited for the next batch. A high io/io_bound_ratio (>0.3) means data loading
+    is the bottleneck.
     """
 
+    def __init__(self):
+        super().__init__()
+        self._batch_end_time = None
+        self._last_wait_ms = 0.0
+        self._nvml_handle = None
+        if _PYNVML_AVAILABLE:
+            try:
+                _pynvml.nvmlInit()
+                local_rank = int(os.environ.get("LOCAL_RANK", 0))
+                self._nvml_handle = _pynvml.nvmlDeviceGetHandleByIndex(local_rank)
+            except Exception:
+                pass
+
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
+        # Measure time since last batch ended (= DataLoader wait)
+        now = time.perf_counter()
+        if self._batch_end_time is not None:
+            self._last_wait_ms = (now - self._batch_end_time) * 1000
+        else:
+            self._last_wait_ms = 0.0
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         self._batch_start = time.perf_counter()
@@ -71,13 +101,22 @@ class BenchmarkCallback(L.Callback):
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         elapsed = time.perf_counter() - self._batch_start
+        self._batch_end_time = time.perf_counter()
 
         bs = pl_module.hparams.batch_size
         throughput = bs / elapsed
+        step_ms = elapsed * 1000
+        wait_ms = self._last_wait_ms
+        total_ms = wait_ms + step_ms
+        io_ratio = wait_ms / total_ms if total_ms > 0 else 0.0
 
         pl_module.log("perf/throughput_imgs_per_sec", throughput,
                       on_step=True, on_epoch=False, rank_zero_only=True)
-        pl_module.log("perf/step_time_ms", elapsed * 1000,
+        pl_module.log("perf/step_time_ms", step_ms,
+                      on_step=True, on_epoch=False, rank_zero_only=True)
+        pl_module.log("io/dataloader_wait_ms", wait_ms,
+                      on_step=True, on_epoch=False, rank_zero_only=True)
+        pl_module.log("io/io_bound_ratio", io_ratio,
                       on_step=True, on_epoch=False, rank_zero_only=True)
 
         if torch.cuda.is_available():
@@ -87,6 +126,14 @@ class BenchmarkCallback(L.Callback):
             pl_module.log("gpu/memory_reserved_gb",
                           torch.cuda.memory_reserved() / 1e9,
                           on_step=True, on_epoch=False, rank_zero_only=True)
+
+        if self._nvml_handle is not None:
+            try:
+                util = _pynvml.nvmlDeviceGetUtilizationRates(self._nvml_handle).gpu
+                pl_module.log("gpu/utilization_pct", float(util),
+                              on_step=True, on_epoch=False, rank_zero_only=True)
+            except Exception:
+                pass
 
     def on_train_epoch_start(self, trainer, pl_module):
         self._epoch_start = time.perf_counter()
@@ -116,6 +163,7 @@ class MAEBenchmarkModule(L.LightningModule):
         epochs: int,
         mask_ratio: float,
         norm_pix_loss: bool,
+        data_path: str = "",
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -126,6 +174,10 @@ class MAEBenchmarkModule(L.LightningModule):
         n_params = sum(p.numel() for p in self.model.parameters()) / 1e6
         if wandb.run is not None:
             wandb.run.summary["model_params_M"] = round(n_params, 1)
+            wandb.config.update({
+                "system/node": os.environ.get("SLURMD_NODENAME", "unknown"),
+                "system/data_path": self.hparams.data_path,
+            }, allow_val_change=True)
 
     def training_step(self, batch, batch_idx):
         images, _ = batch
@@ -357,6 +409,7 @@ def main(args):
         name=run_name,
         save_dir=args.output_dir,
         log_model=False,
+        save_code=False,
     )
 
     module = MAEBenchmarkModule(
@@ -370,6 +423,7 @@ def main(args):
         epochs=args.epochs,
         mask_ratio=args.mask_ratio,
         norm_pix_loss=args.norm_pix_loss,
+        data_path=args.data_path,
     )
 
     datamodule = HFDataModule(

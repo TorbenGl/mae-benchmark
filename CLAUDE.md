@@ -6,6 +6,10 @@ PyTorch implementation of Masked Autoencoders (MAE) — a self-supervised vision
 
 Only work within this directory (`mae-benchmark/`). Do not reference or modify files outside this project.
 
+## SLURM Commands
+
+When asked to run any SLURM command (`sbatch`, `scontrol`, `scancel`, `squeue`, etc.), always present the command first and wait for explicit user confirmation before executing it.
+
 ## Key Entry Points
 
 - `train_benchmark.py` — **SLURM benchmark** entry point (PyTorch Lightning + W&B); use this for cluster performance testing
@@ -50,29 +54,46 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 - `main_pretrain.py` — removed `assert timm.__version__ == "0.3.2"`; `optim_factory.add_weight_decay` → `param_groups_weight_decay`
 - `models_vit.py` — fine-tuning only, not used in benchmark; may need further updates for full timm 1.x compatibility
 
+## Node Inventory (as of 2026-03-31)
+
+| Node | CPUs | RAM | GPU | Storage | Partition | State |
+|---|---|---|---|---|---|---|
+| node005 | 8 | 16 GB | H200 NVL 140 GB | remote (off-rack) | `gpu-node` | DRAINED* |
+| node007 | 16 | 32 GB | H200 NVL 140 GB | local | `gpu-node` | IDLE |
+
+Driver 590.48.01, CUDA 13.1.
+
+*node005 was auto-drained 2026-03-30 after a batch job failure. Undrain before submitting:
+`scontrol update nodename=node005 state=resume`
+
+The low GPU utilization observed on node005 is suspected to be caused by remote storage — the data rack is not co-located. Use `io/dataloader_wait_ms` and `io/io_bound_ratio` in W&B to confirm.
+
 ## Benchmark Architecture
 
-`train_benchmark.py` uses PyTorch Lightning (`MAEBenchmarkModule` + `BenchmarkCallback`) wrapping the existing `MaskedAutoencoderViT`. W&B run names follow `{arch}-bs{batch_size}-{gpu_label}`. SBATCH presets are in `slurm/presets/` with partition name placeholders (`H200_FULL_PARTITION_NAME`, `H200_MIG_PARTITION_NAME`) replaced via `bash slurm/submit_all.sh --configure`.
+`train_benchmark.py` uses PyTorch Lightning (`MAEBenchmarkModule` + `BenchmarkCallback`) wrapping the existing `MaskedAutoencoderViT`. W&B run names follow `{arch}-bs{batch_size}-{gpu_label}`. SBATCH presets are in `slurm/presets/locality/` (12 presets: ViT-B × 6 batch sizes × 2 nodes). Old presets archived in `slurm/presets/backup/`. See `slurm/USAGE.md` for full cluster operations guide.
 
 Presets use `--max_steps 200 --warmup_epochs 0` for step-based timing probes (dataset size-independent). Use `--fast_dev_run` for a single-batch sanity check without real training.
+
+W&B metrics include `io/dataloader_wait_ms`, `io/io_bound_ratio`, and `gpu/utilization_pct` (via pynvml) for diagnosing data-locality bottlenecks. `system/node` and `system/data_path` are logged to W&B config per run.
 
 ## Benchmark Workflow
 
 ```bash
-# 1. Configure partition names (once)
-export H200_FULL_PART=your_partition
-export H200_MIG_PART=your_mig_partition
-bash slurm/submit_all.sh --configure
+# 1. Undrain node005 if needed
+scontrol update nodename=node005 state=resume
 
-# 2. Smoke test — 2 jobs, 1 batch each, 10-min limit
+# 2. Set env vars
 export DATA_PATH=/datasets/imagenet21k
+export WANDB_API_KEY=your_key
+
+# 3. Smoke test — 1 job per node, single batch each
 bash slurm/smoke_test.sh
 
-# 3. Fire all 12 presets
+# 4. Fire all 12 locality presets
 bash slurm/submit_all.sh
 ```
 
-`slurm/smoke_test.sh` submits one ViT-S job per GPU type using `--fast_dev_run`. Verify both complete before running all 12.
+`slurm/smoke_test.sh` submits one ViT-B/bs256 job on node005 and one on node007 using `--fast_dev_run`. Verify both complete before running all 12. See `slurm/USAGE.md` for full details.
 
 ## Dataset Cache (run once before benchmarking)
 
