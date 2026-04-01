@@ -11,7 +11,7 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=30G
-#SBATCH --time=00:30:00
+#SBATCH --time=02:00:00
 #SBATCH --output=logs/locality-n007-vit_b-bs64-%j.out
 #SBATCH --error=logs/locality-n007-vit_b-bs64-%j.err
 
@@ -26,7 +26,7 @@ echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
 python "$REPO_DIR/train_benchmark.py" \
     --model mae_vit_base_patch16 \
     --batch_size 64 \
-    --max_steps 5000 \
+    --max_steps 50000 \
     --warmup_epochs 0 \
     --blr 1e-3 \
     --data_path "$DATA_PATH" \
