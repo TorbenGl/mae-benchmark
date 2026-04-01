@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Data Locality Benchmark — ViT-Base, batch=2048, node005 (remote storage)
-# node005: 8 CPUs, 16 GB RAM, H200 NVL 140 GB
+# node005: 16 CPUs, 32 GB RAM, H200 NVL 140 GB
 # num_workers reduced to 2 (vs 4 for bs=1024) to keep DataLoader prefetch
 # buffer (~8 GB at bs=2048) within the 15G RAM limit.
 # NOTE: node005 must be undrained before submitting:

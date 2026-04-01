@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Data Locality Benchmark — ViT-Base, batch=64, node005 (remote storage)
-# node005: 8 CPUs, 16 GB RAM, H200 NVL 140 GB
+# node005: 16 CPUs, 32 GB RAM, H200 NVL 140 GB
 # NOTE: node005 must be undrained before submitting:
 #   scontrol update nodename=node005 state=resume
 # =============================================================================

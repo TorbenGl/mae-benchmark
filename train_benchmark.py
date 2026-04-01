@@ -305,13 +305,15 @@ class HFDataModule(L.LightningDataModule):
     def train_dataloader(self):
         # Lightning automatically replaces the random sampler with DistributedSampler for DDP.
         return torch.utils.data.DataLoader(
-            self.dataset_train,
-            batch_size=self.batch_size,
-            num_workers=self.num_workers,
-            pin_memory=True,
-            drop_last=True,
-            shuffle=True,
-        )
+                self.dataset_train,
+                batch_size=self.batch_size,
+                num_workers=self.num_workers,
+                pin_memory=True,
+                persistent_workers=True,
+                prefetch_factor=2,
+                drop_last=True,
+                shuffle=(self.trainer.world_size == 1),
+                )
 
 
 # ---------------------------------------------------------------------------
