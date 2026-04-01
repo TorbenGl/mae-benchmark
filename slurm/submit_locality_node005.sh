@@ -9,7 +9,7 @@ PRESETS_DIR="$SCRIPT_DIR/presets/locality"
 
 mkdir -p "$SCRIPT_DIR/logs"
 
-echo "Submitting 6 locality presets for node005 (remote storage)..."
+echo "Submitting 7 locality presets for node005 (remote storage)..."
 echo ""
 
 submitted=0
@@ -19,7 +19,8 @@ for script in \
     locality_node005_vit_b_bs128.sh  \
     locality_node005_vit_b_bs256.sh  \
     locality_node005_vit_b_bs512.sh  \
-    locality_node005_vit_b_bs1024.sh ; do
+    locality_node005_vit_b_bs1024.sh \
+    locality_node005_vit_b_bs2048.sh \; do
 
     job_id=$(sbatch --parsable "$PRESETS_DIR/$script")
     echo "  Submitted $script -> job $job_id"

@@ -37,5 +37,5 @@ python "$REPO_DIR/train_benchmark.py" \
     --output_dir "$REPO_DIR/outputs/locality_node005" \
     --gpu_label h200_node005_remote \
     --precision 16-mixed \
-    --num_workers 14 \
+    --num_workers 6 \
     --image_col jpg --label_col cls

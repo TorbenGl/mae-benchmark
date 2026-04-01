@@ -1,5 +1,5 @@
 #!/bin/bash
-# Submit all 12 locality presets (node005 + node007, all batch sizes).
+# Submit all 14 locality presets (node005 + node007, all batch sizes).
 
 
 set -euo pipefail
@@ -8,9 +8,9 @@ PRESETS_DIR="$SCRIPT_DIR/presets/locality"
 
 mkdir -p "$SCRIPT_DIR/logs"
 
-echo "Submitting all 12 locality presets..."
-echo "  node005 (remote storage): 6 jobs"
-echo "  node007 (local storage):  6 jobs"
+echo "Submitting all 14 locality presets..."
+echo "  node005 (remote storage): 7 jobs"
+echo "  node007 (local storage):  7 jobs"
 echo ""
 
 submitted=0
