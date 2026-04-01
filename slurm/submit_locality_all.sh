@@ -1,7 +1,6 @@
 #!/bin/bash
 # Submit all 12 locality presets (node005 + node007, all batch sizes).
-# PREREQUISITE: node005 must be undrained first:
-#   scontrol update nodename=node005 state=resume
+
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
