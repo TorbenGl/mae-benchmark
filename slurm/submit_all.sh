@@ -15,7 +15,7 @@
 #   4. Submit:
 #        bash slurm/submit_all.sh
 #
-# Presets: ViT-Base, batch sizes 32/64/128/256/512/1024, on node005 and node007.
+# Presets: ViT-Base, batch sizes 32/64/128/256/512/1024/2048, on node005 and node007.
 # Both nodes use partition: gpu-node
 # See slurm/USAGE.md for full details.
 # =============================================================================
@@ -26,19 +26,21 @@ PRESETS_DIR="$SCRIPT_DIR/presets/locality"
 
 mkdir -p "$SCRIPT_DIR/logs"
 
-echo "Submitting 12 locality benchmark presets..."
-echo "  node005 (remote storage): 6 jobs"
-echo "  node007 (local storage):  6 jobs"
+echo "Submitting 14 locality benchmark presets..."
+echo "  node005 (remote storage): 7 jobs"
+echo "  node007 (local storage):  7 jobs"
 echo ""
 
 submitted=0
 for script in \
-    locality_node005_vit_b_bs32.sh   locality_node005_vit_b_bs64.sh  \
-    locality_node005_vit_b_bs128.sh  locality_node005_vit_b_bs256.sh \
+    locality_node005_vit_b_bs32.sh   locality_node005_vit_b_bs64.sh   \
+    locality_node005_vit_b_bs128.sh  locality_node005_vit_b_bs256.sh  \
     locality_node005_vit_b_bs512.sh  locality_node005_vit_b_bs1024.sh \
-    locality_node007_vit_b_bs32.sh   locality_node007_vit_b_bs64.sh  \
-    locality_node007_vit_b_bs128.sh  locality_node007_vit_b_bs256.sh \
-    locality_node007_vit_b_bs512.sh  locality_node007_vit_b_bs1024.sh ; do
+    locality_node005_vit_b_bs2048.sh \
+    locality_node007_vit_b_bs32.sh   locality_node007_vit_b_bs64.sh   \
+    locality_node007_vit_b_bs128.sh  locality_node007_vit_b_bs256.sh  \
+    locality_node007_vit_b_bs512.sh  locality_node007_vit_b_bs1024.sh \
+    locality_node007_vit_b_bs2048.sh ; do
 
     path="$PRESETS_DIR/$script"
     job_id=$(sbatch --parsable "$path")

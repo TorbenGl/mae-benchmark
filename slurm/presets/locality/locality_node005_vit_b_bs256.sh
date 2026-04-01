@@ -11,8 +11,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=15G
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=30G
 #SBATCH --time=00:30:00
 #SBATCH --output=logs/locality-n005-vit_b-bs256-%j.out
 #SBATCH --error=logs/locality-n005-vit_b-bs256-%j.err
@@ -35,5 +35,5 @@ python "$REPO_DIR/train_benchmark.py" \
     --output_dir "$REPO_DIR/outputs/locality_node005" \
     --gpu_label h200_node005_remote \
     --precision 16-mixed \
-    --num_workers 7 \
+    --num_workers 14 \
     --image_col jpg --label_col cls
