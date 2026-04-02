@@ -54,17 +54,14 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 - `main_pretrain.py` — removed `assert timm.__version__ == "0.3.2"`; `optim_factory.add_weight_decay` → `param_groups_weight_decay`
 - `models_vit.py` — fine-tuning only, not used in benchmark; may need further updates for full timm 1.x compatibility
 
-## Node Inventory (as of 2026-03-31)
+## Node Inventory (as of 2026-04-02)
 
 | Node | CPUs | RAM | GPU | Storage | Partition | State |
 |---|---|---|---|---|---|---|
-| node005 | 8 | 16 GB | H200 NVL 140 GB | remote (off-rack) | `gpu-node` | DRAINED* |
-| node007 | 16 | 32 GB | H200 NVL 140 GB | local | `gpu-node` | IDLE |
+| node005 | 64 | 157 GB | H200 NVL 140 GB | remote (off-rack) | `gpu-node` | IDLE |
+| node007 | 64 | 157 GB | H200 NVL 140 GB | local | `gpu-node` | IDLE |
 
-Driver 590.48.01, CUDA 13.1.
-
-*node005 was auto-drained 2026-03-30 after a batch job failure. Undrain before submitting:
-`scontrol update nodename=node005 state=resume`
+Both nodes: 4 sockets × 16 cores × 1 thread, RealMemory=161127 MB. Driver 590.48.01, CUDA 13.1.
 
 The low GPU utilization observed on node005 is suspected to be caused by remote storage — the data rack is not co-located. Use `io/dataloader_wait_ms` and `io/io_bound_ratio` in W&B to confirm.
 
