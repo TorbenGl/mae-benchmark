@@ -51,6 +51,7 @@ nvidia-cusparselt-cu12==0.7.1 ; sys_platform == "linux"
 nvidia-nccl-cu12==2.27.3 ; sys_platform == "linux"
 nvidia-nvjitlink-cu12==12.6.85 ; sys_platform == "linux"
 nvidia-ml-py ; sys_platform == "linux"
+psutil
 nvidia-nvtx-cu12==12.6.77 ; sys_platform == "linux"
 packaging==26.0
 pandas==2.3.3
