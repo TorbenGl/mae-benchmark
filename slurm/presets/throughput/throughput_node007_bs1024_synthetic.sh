@@ -26,7 +26,7 @@ echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
 python "$REPO_DIR/train_benchmark_throughput.py" \
     --model mae_vit_base_patch16 \
     --batch_size 1024 \
-    --max_steps 200 \
+    --max_steps 5000 \
     --warmup_epochs 0 \
     --blr 1e-3 \
     --data_mode synthetic \
