@@ -10,8 +10,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=8
-#SBATCH --mem=30G
+#SBATCH --cpus-per-task=7
+#SBATCH --mem=12G
 #SBATCH --time=00:30:00
 #SBATCH --output=logs/tv2-n005-bs512-low-%j.out
 #SBATCH --error=logs/tv2-n005-bs512-low-%j.err

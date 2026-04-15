@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Throughput V2 — ViT-Base, bs=2048, node005 (remote storage), MID config
-# num_workers=14, prefetch_factor=4
+# num_workers=6, prefetch_factor=4
 # =============================================================================
 #SBATCH --job-name=tv2-n005-bs2048-mid
 #SBATCH --partition=gpu-node
@@ -9,8 +9,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=30G
+#SBATCH --cpus-per-task=7
+#SBATCH --mem=12G
 #SBATCH --time=00:30:00
 #SBATCH --output=logs/tv2-n005-bs2048-mid-%j.out
 #SBATCH --error=logs/tv2-n005-bs2048-mid-%j.err
@@ -33,6 +33,6 @@ python "$REPO_DIR/train_benchmark_v2.py" \
     --output_dir "$REPO_DIR/outputs/throughput_v2_node005" \
     --gpu_label h200_node005_remote \
     --precision 16-mixed \
-    --num_workers 14 \
+    --num_workers 6 \
     --prefetch_factor 4 \
     --image_col jpg --label_col cls

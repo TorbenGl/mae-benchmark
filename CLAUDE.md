@@ -54,14 +54,16 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 - `main_pretrain.py` — removed `assert timm.__version__ == "0.3.2"`; `optim_factory.add_weight_decay` → `param_groups_weight_decay`
 - `models_vit.py` — fine-tuning only, not used in benchmark; may need further updates for full timm 1.x compatibility
 
-## Node Inventory (as of 2026-04-02)
+## Node Inventory (as of 2026-04-15)
 
 | Node | CPUs | RAM | GPU | Storage | Partition | State |
 |---|---|---|---|---|---|---|
-| node005 | 64 | 157 GB | H200 NVL 140 GB | remote (off-rack) | `gpu-node` | IDLE |
-| node007 | 64 | 157 GB | H200 NVL 140 GB | local | `gpu-node` | IDLE |
+| node005 | 8 | ~15.6 GB | H200 NVL 140 GB | `/scratch` local (934 GB free) | `gpu-node` | IDLE |
+| node007 | 16 | ~31.3 GB | H200 NVL 140 GB | `/scratch` local (956 GB free) | `gpu-node` | IDLE |
 
-Both nodes: 4 sockets × 16 cores × 1 thread, RealMemory=161127 MB. Driver 590.48.01, CUDA 13.1.
+node005: CPUEfctv=8, RealMemory=15966 MB. node007: CPUEfctv=16, RealMemory=32068 MB. Both have `/scratch` on `/dev/sdb1` (local to the node, not mounted on login node). Partition `gpu-node`. Driver 590.48.01, CUDA 13.1.
+
+The previous "remote vs local storage" distinction referred to `/datasets/imagenet21k` (shared network filesystem). Both nodes also have a large local `/scratch` — copy the dataset there to eliminate network I/O as a variable.
 
 The low GPU utilization observed on node005 is suspected to be caused by remote storage — the data rack is not co-located. Use `io/dataloader_wait_ms` and `io/io_bound_ratio` in W&B to confirm.
 
