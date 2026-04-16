@@ -56,12 +56,14 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 
 ## Node Inventory (as of 2026-04-02)
 
-| Node | CPUs | RAM | GPU | Storage | Partition | State |
-|---|---|---|---|---|---|---|
-| node005 | 64 | 157 GB | H200 NVL 140 GB | remote (off-rack) | `gpu-node` | IDLE |
-| node007 | 64 | 157 GB | H200 NVL 140 GB | local | `gpu-node` | IDLE |
+| Node | CPUs | RAM | GPU | Storage | Scratch | Partition | State |
+|---|---|---|---|---|---|---|---|
+| node005 | 64 | 157 GB | H200 NVL 140 GB | remote (off-rack) | unknown | `gpu-node` | IDLE |
+| node007 | 64 | 157 GB | H200 NVL 140 GB | local | `/scratch` (2 TB, `/dev/sdb1`) | `gpu-node` | IDLE |
 
 Both nodes: 4 sockets × 16 cores × 1 thread, RealMemory=161127 MB. Driver 590.48.01, CUDA 13.1.
+
+node007 local scratch: `/scratch` — 2 TB dedicated disk (`/dev/sdb1`), nearly empty. Use `--data_path /scratch/imagenet21k` for node007 jobs to avoid network I/O.
 
 The low GPU utilization observed on node005 is suspected to be caused by remote storage — the data rack is not co-located. Use `io/dataloader_wait_ms` and `io/io_bound_ratio` in W&B to confirm.
 
