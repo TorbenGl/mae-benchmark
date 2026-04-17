@@ -39,4 +39,5 @@ python "$REPO_DIR/train_benchmark_throughput.py" \
     --num_workers 40 \
     --output_dir "$REPO_DIR/outputs/throughput_node007local" \
     --node_label n007local \
-    --precision bf16-mixed
+    --precision bf16-mixed \
+    --image_col jpg --label_col cls

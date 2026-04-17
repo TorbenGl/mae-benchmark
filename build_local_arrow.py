@@ -49,6 +49,18 @@ def main():
     print(f"Workers: {args.num_proc}")
     print()
 
+    # --- Idempotency check: skip if destination already exists and is valid ---
+    if os.path.isdir(args.dst):
+        print(f"Destination {args.dst} already exists — verifying...")
+        try:
+            from datasets import load_from_disk as _lfd
+            _ds = _lfd(args.dst)
+            print(f"  Valid Arrow dataset found: {len(_ds):,} examples.")
+            print("  Nothing to do. Delete the destination directory to force a rebuild.")
+            return
+        except Exception as e:
+            print(f"  Existing directory is not a valid Arrow dataset ({e}). Rebuilding...")
+
     t0 = time.time()
 
     # Try Arrow format first (already save_to_disk layout — fastest path)
