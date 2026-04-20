@@ -19,7 +19,7 @@ import argparse
 import os
 import time
 
-DEFAULT_SRC = "/datasets/imagenet21k"
+DEFAULT_SRC = os.path.expanduser("~/imagenet21k")
 DEFAULT_DST = "/scratch/imagenet21k_arrow"
 
 

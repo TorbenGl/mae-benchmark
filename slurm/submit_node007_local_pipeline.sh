@@ -22,7 +22,7 @@ PRESET_DIR="$SCRIPT_DIR/presets/throughput"
 LOG_DIR="$REPO_DIR/logs"
 mkdir -p "$LOG_DIR"
 
-SRC_PATH="${SRC_PATH:-/datasets/imagenet21k}"
+SRC_PATH="${SRC_PATH:-$HOME/imagenet21k}"
 DST_PATH="${DST_PATH:-/scratch/imagenet21k_arrow}"
 VENV_DIR="${VENV_PATH:-$REPO_DIR/.venv}"
 

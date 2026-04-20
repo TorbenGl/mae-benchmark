@@ -43,7 +43,7 @@ When asked to run any SLURM command (`sbatch`, `scontrol`, `scancel`, `squeue`, 
 - Development: Windows (no CUDA packages — `nvidia-*-cu12` and `triton` are Linux-only, marked with `; sys_platform == "linux"` in requirements.txt)
 - Training / benchmarking runs on Linux with CUDA
 - Install: `uv pip install --index-strategy unsafe-best-match -r requirements.txt` — PyTorch wheel index is embedded via `--index-url`; `--index-strategy unsafe-best-match` is required (resolves `torch+cu126` from the PyTorch index) but cannot be set inside requirements.txt
-- Dataset: ImageNet-21k (`/datasets/imagenet21k` default); column names `image` / `label` (standard HF format)
+- Dataset: ImageNet-21k (`~/imagenet21k` on the cluster); column names `jpg` / `cls` (timm/imagenet-w21-wds format)
 
 ## Compatibility Notes (PyTorch 2.8 + timm ≥ 0.9)
 
