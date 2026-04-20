@@ -1,10 +1,12 @@
 #!/bin/bash
 # =============================================================================
-# Throughput Benchmark — ViT-Base, batch=2048, node007 (local /scratch), real data
-# node007: 16 CPUs, 32 GB RAM, H200 NVL 140 GB, local storage (co-located)
-# CPU budget: 14 workers (leaving 2 CPUs for main process + OS)
-# RAM budget: 14 workers × 6 prefetch × 2048 imgs × 0.6 MB ≈ 103 GB  → cap at 30G
-# DATA_PATH must point to local /scratch (e.g. /scratch/imagenet21k), NOT /datasets/imagenet21k
+# Throughput Benchmark — ViT-Base, batch=2048, node007 LOCAL scratch, real data
+# Data source: /scratch/imagenet21k_arrow (Arrow format, load_from_disk)
+# OOM budget: 16 workers × 4 prefetch × 2048 imgs × 0.6 MB = 79 GB prefetch buffer
+# node007: 64 CPUs, 157 GB RAM, H200 NVL 140 GB, local NVMe/SSD scratch
+#
+# PREREQUISITE: run slurm/build_local_arrow_node007.sh first (one-time, ~4–10 h).
+# Compare against throughput-n007-bs2048-real (NFS) to measure storage locality gain.
 # =============================================================================
 #SBATCH --job-name=throughput-n007local-bs2048-real
 #SBATCH --partition=gpu-node
@@ -12,8 +14,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=15
-#SBATCH --mem=30G
+#SBATCH --cpus-per-task=60
+#SBATCH --mem=100G
 #SBATCH --time=02:00:00
 #SBATCH --output=logs/throughput-n007local-bs2048-real-%j.out
 #SBATCH --error=logs/throughput-n007local-bs2048-real-%j.err
@@ -21,12 +23,9 @@
 set -euo pipefail
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 VENV_DIR="${VENV_PATH:-$REPO_DIR/.venv}"
-# IMPORTANT: must be local /scratch — network path defeats the locality experiment
-DATA_PATH="${DATA_PATH:-/scratch/imagenet21k}"
 
 source "$VENV_DIR/bin/activate"
 echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
-echo "DATA_PATH=$DATA_PATH"
 
 python "$REPO_DIR/train_benchmark_throughput.py" \
     --model mae_vit_base_patch16 \
@@ -35,10 +34,10 @@ python "$REPO_DIR/train_benchmark_throughput.py" \
     --warmup_epochs 0 \
     --blr 1e-3 \
     --data_mode real \
-    --data_path "$DATA_PATH" \
-    --prefetch_factor 6 \
-    --num_workers 14 \
-    --output_dir "$REPO_DIR/outputs/throughput_node007" \
+    --data_path /scratch/imagenet21k_arrow \
+    --prefetch_factor 4 \
+    --num_workers 16 \
+    --output_dir "$REPO_DIR/outputs/throughput_node007local" \
     --node_label n007local \
     --precision bf16-mixed \
     --image_col jpg --label_col cls

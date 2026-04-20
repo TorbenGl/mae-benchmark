@@ -348,9 +348,13 @@ class _HFImageDataset(torch.utils.data.Dataset):
         item = self.dataset[idx]
         img = item[self.image_col]
         if isinstance(img, (bytes, bytearray)):
-            img = PILImage.open(io.BytesIO(img)).convert("RGB")
+            # Use memoryview to avoid a copy; PIL can read directly from a buffer
+            img = PILImage.open(io.BytesIO(img))
+            if img.mode != "RGB":
+                img = img.convert("RGB")
         elif isinstance(img, PILImage.Image):
-            img = img.convert("RGB")
+            if img.mode != "RGB":
+                img = img.convert("RGB")
         else:
             img = PILImage.fromarray(img).convert("RGB")
         return self.transform(img), item[self.label_col]
@@ -498,6 +502,15 @@ def main(args):
         )
     if args.data_mode == "real" and not args.data_path:
         raise ValueError("--data_mode real requires --data_path")
+
+    # Guard: cap workers at (available CPUs - 1) to leave headroom for the main process.
+    # Over-subscribing is the #1 cause of dataloader stalls on nodes with few CPUs.
+    cpu_count = os.cpu_count() or 1
+    if args.num_workers >= cpu_count:
+        safe_workers = max(1, cpu_count - 1)
+        print(f"WARNING: --num_workers {args.num_workers} >= cpu_count {cpu_count}; "
+              f"capping at {safe_workers} to avoid CPU starvation")
+        args.num_workers = safe_workers
 
     torch.set_float32_matmul_precision("high")
     L.seed_everything(args.seed)
