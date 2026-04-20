@@ -54,21 +54,14 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 - `main_pretrain.py` — removed `assert timm.__version__ == "0.3.2"`; `optim_factory.add_weight_decay` → `param_groups_weight_decay`
 - `models_vit.py` — fine-tuning only, not used in benchmark; may need further updates for full timm 1.x compatibility
 
-## Node Inventory (as of 2026-04-15)
+## Node Inventory (as of 2026-04-20)
 
-<<<<<<< HEAD
-| Node | CPUs | RAM | GPU | Storage | Partition | State |
+| Node | CPUs | RAM | GPU | Scratch | Partition | State |
 |---|---|---|---|---|---|---|
-| node005 | 8 | ~15.6 GB | H200 NVL 140 GB | `/scratch` local (934 GB free) | `gpu-node` | IDLE |
-| node007 | 16 | ~31.3 GB | H200 NVL 140 GB | `/scratch` local (956 GB free) | `gpu-node` | IDLE |
-=======
-| Node | CPUs | RAM | GPU | Storage | Scratch | Partition | State |
-|---|---|---|---|---|---|---|---|
-| node005 | 64 | 157 GB | H200 NVL 140 GB | remote (off-rack) | unknown | `gpu-node` | IDLE |
-| node007 | 64 | 157 GB | H200 NVL 140 GB | local | `/scratch` (2 TB, `/dev/sdb1`) | `gpu-node` | IDLE |
->>>>>>> ec6d0c998e084e0e8c2f6f4350938ffe103ed599
+| node005 | 64 | ~295 GB (TBC) | H200 NVL 140 GB | unknown — run `scontrol show node node005` | `gpu-node` | IDLE |
+| node007 | 64 | ~295 GB | H200 NVL 140 GB | `/scratch` (2 TB, `/dev/sdb1`, local) | `gpu-node` | IDLE |
 
-node005: CPUEfctv=8, RealMemory=15966 MB. node007: CPUEfctv=16, RealMemory=32068 MB. Both have `/scratch` on `/dev/sdb1` (local to the node, not mounted on login node). Partition `gpu-node`. Driver 590.48.01, CUDA 13.1.
+node007 confirmed via `scontrol`: CPUEfctv=64, RealMemory=302247 MB (~295 GB). Both nodes in partition `gpu-node`. Driver 590.48.01, CUDA 13.1. `/scratch` is local to each node — not mounted on the login node.
 
 The previous "remote vs local storage" distinction referred to `/datasets/imagenet21k` (shared network filesystem). Both nodes also have a large local `/scratch` — copy the dataset there to eliminate network I/O as a variable.
 

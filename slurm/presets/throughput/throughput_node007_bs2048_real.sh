@@ -22,7 +22,7 @@ set -euo pipefail
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 VENV_DIR="${VENV_PATH:-$REPO_DIR/.venv}"
 # IMPORTANT: must be local /scratch — network path defeats the locality experiment
-DATA_PATH="${DATA_PATH:-/scratch/imagenet21k}"
+DATA_PATH="${DATA_PATH:-/scratch/imagenet21k_arrow}"
 
 source "$VENV_DIR/bin/activate"
 echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
