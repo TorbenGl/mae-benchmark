@@ -279,6 +279,7 @@ class HFDataModule(L.LightningDataModule):
         split: str = "train",
         image_col: str = "image",
         label_col: str = "label",
+        prefetch_factor: int = 4,
     ):
         super().__init__()
         self.data_path = data_path
@@ -288,6 +289,7 @@ class HFDataModule(L.LightningDataModule):
         self.split = split
         self.image_col = image_col
         self.label_col = label_col
+        self.prefetch_factor = prefetch_factor
 
     def setup(self, stage=None):
         try:
@@ -314,7 +316,7 @@ class HFDataModule(L.LightningDataModule):
                 num_workers=self.num_workers,
                 pin_memory=True,
                 persistent_workers=True,
-                prefetch_factor=2,
+                prefetch_factor=self.prefetch_factor,
                 drop_last=True,
                 shuffle=(self.trainer.world_size == 1),
                 )
@@ -365,6 +367,8 @@ def get_args_parser():
     parser.add_argument("--label_col", default="label", type=str,
                         help="Label column name (use 'cls' for timm/imagenet-w21-wds)")
     parser.add_argument("--num_workers", default=8, type=int)
+    parser.add_argument("--prefetch_factor", default=4, type=int,
+                        help="DataLoader prefetch_factor per worker (total queued = num_workers * prefetch_factor)")
 
     # Output / logging
     parser.add_argument("--output_dir", default="./outputs", type=str)
@@ -440,6 +444,7 @@ def main(args):
         split=args.hf_split,
         image_col=args.image_col,
         label_col=args.label_col,
+        prefetch_factor=args.prefetch_factor,
     )
 
     trainer = L.Trainer(

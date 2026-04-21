@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Data Locality Benchmark — ViT-Base, batch=64, node005 (remote storage)
-# node005: 16 CPUs, 32 GB RAM, H200 NVL 140 GB
+# node005: 32 CPUs, 60 GB RAM, H200 NVL 140 GB
 # NOTE: node005 must be undrained before submitting:
 #   scontrol update nodename=node005 state=resume
 # =============================================================================
@@ -11,8 +11,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=30G
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=60G
 #SBATCH --time=02:00:00
 #SBATCH --output=logs/locality-n005-vit_b-bs64-%j.out
 #SBATCH --error=logs/locality-n005-vit_b-bs64-%j.err
@@ -35,5 +35,5 @@ python "$REPO_DIR/train_benchmark.py" \
     --output_dir "$REPO_DIR/outputs/locality_node005" \
     --gpu_label h200_node005_remote \
     --precision 16-mixed \
-    --num_workers 14 \
+    --num_workers 28 \
     --image_col jpg --label_col cls

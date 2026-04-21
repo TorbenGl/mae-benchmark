@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # Data Locality Benchmark — ViT-Base, batch=256, node007 (local storage)
-# node007: 16 CPUs, 32 GB RAM, H200 NVL 140 GB
+# node007: 32 CPUs, 60 GB RAM, H200 NVL 140 GB
 # =============================================================================
 #SBATCH --job-name=locality-n007-vit_b-bs256
 #SBATCH --partition=gpu-node
@@ -9,8 +9,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --gpus-per-task=1
-#SBATCH --cpus-per-task=16
-#SBATCH --mem=30G
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=60G
 #SBATCH --time=02:00:00
 #SBATCH --output=logs/locality-n007-vit_b-bs256-%j.out
 #SBATCH --error=logs/locality-n007-vit_b-bs256-%j.err
@@ -33,5 +33,5 @@ python "$REPO_DIR/train_benchmark.py" \
     --output_dir "$REPO_DIR/outputs/locality_node007" \
     --gpu_label h200_node007_local \
     --precision 16-mixed \
-    --num_workers 14 \
+    --num_workers 28 \
     --image_col jpg --label_col cls

@@ -45,6 +45,7 @@ try:
 except ImportError:
     _PSUTIL_AVAILABLE = False
 
+import csv
 import torch
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)
@@ -58,6 +59,50 @@ from lightning.pytorch.loggers import WandbLogger
 import timm.optim.optim_factory as optim_factory
 
 import models_mae
+
+
+# ---------------------------------------------------------------------------
+# File Logger Callback — writes all step metrics to a TSV independently of W&B
+# ---------------------------------------------------------------------------
+
+class FileLoggerCallback(L.Callback):
+    """Writes every logged metric to a TSV file on disk, independent of W&B.
+
+    Use this to verify W&B is not misreporting. Each row is one training step.
+    File is flushed every step so data survives a job cancellation.
+    """
+
+    def __init__(self, filepath: str):
+        super().__init__()
+        self._filepath = filepath
+        self._file = None
+        self._writer = None
+        self._headers_written = False
+
+    def on_train_start(self, trainer, pl_module):
+        Path(self._filepath).parent.mkdir(parents=True, exist_ok=True)
+        self._file = open(self._filepath, "w", newline="", buffering=1)
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        metrics = {k: float(v) for k, v in trainer.callback_metrics.items()
+                   if isinstance(v, (int, float)) or hasattr(v, "item")}
+        metrics["step"] = trainer.global_step
+        metrics["wall_time"] = time.time()
+        if not metrics:
+            return
+        if not self._headers_written:
+            self._writer = csv.DictWriter(
+                self._file, fieldnames=sorted(metrics.keys()), delimiter="\t",
+                extrasaction="ignore",
+            )
+            self._writer.writeheader()
+            self._headers_written = True
+        self._writer.writerow({k: metrics.get(k, "") for k in self._writer.fieldnames})
+        self._file.flush()
+
+    def on_train_end(self, trainer, pl_module):
+        if self._file:
+            self._file.close()
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +225,18 @@ class BenchmarkCallback(L.Callback):
             try:
                 usage = _psutil.disk_usage(self._data_path).percent
                 pl_module.log("io/disk_usage_pct", usage,
+                              on_step=True, on_epoch=False, rank_zero_only=True)
+            except Exception:
+                pass
+
+        # --- system-wide CPU utilization (all cores, all processes) ---
+        # W&B's built-in cpu_utilization only tracks the main process.
+        # This metric captures the full node CPU load including DataLoader workers,
+        # so you can see whether workers are actually saturating cores.
+        if _PSUTIL_AVAILABLE and batch_idx % 5 == 0:
+            try:
+                cpu_pct = _psutil.cpu_percent(interval=None)
+                pl_module.log("system/cpu_utilization_all_pct", cpu_pct,
                               on_step=True, on_epoch=False, rank_zero_only=True)
             except Exception:
                 pass
@@ -564,6 +621,9 @@ def main(args):
             prefetch_factor=args.prefetch_factor,
         )
 
+    log_file = Path(args.output_dir) / f"{run_name}.tsv"
+    print(f"File log : {log_file}")
+
     trainer = L.Trainer(
         max_steps=args.max_steps if use_max_steps else -1,
         max_epochs=-1 if use_max_steps else args.epochs,
@@ -574,6 +634,7 @@ def main(args):
                 data_path=args.data_path if args.data_mode == "real" else "",
                 data_mode=args.data_mode,
             ),
+            FileLoggerCallback(filepath=str(log_file)),
             LearningRateMonitor(logging_interval="step"),
         ],
         default_root_dir=args.output_dir,

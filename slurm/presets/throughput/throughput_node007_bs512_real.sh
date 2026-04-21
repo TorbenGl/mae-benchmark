@@ -21,10 +21,20 @@ set -euo pipefail
 REPO_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/../../.." && pwd)}"
 VENV_DIR="${VENV_PATH:-$REPO_DIR/.venv}"
 DATA_PATH="${DATA_PATH:-/scratch/imagenet21k_arrow}"
+LOG_DIR="$REPO_DIR/logs"
+mkdir -p "$LOG_DIR"
 
-source "$VENV_DIR/bin/activate"
 echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
 echo "DATA_PATH=$DATA_PATH"
+
+# --- background nvidia-smi monitor (independent of training process) ---
+NSMI_LOG="$LOG_DIR/nvidia-smi-${SLURM_JOB_ID}.log"
+nvidia-smi dmon -s put -d 1 > "$NSMI_LOG" &
+NSMI_PID=$!
+trap "kill $NSMI_PID 2>/dev/null; wait $NSMI_PID 2>/dev/null" EXIT
+echo "nvidia-smi dmon -> $NSMI_LOG (PID $NSMI_PID)"
+
+source "$VENV_DIR/bin/activate"
 
 python "$REPO_DIR/train_benchmark_throughput.py" \
     --model mae_vit_base_patch16 \
