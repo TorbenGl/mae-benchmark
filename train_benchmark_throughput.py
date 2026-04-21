@@ -57,6 +57,7 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import WandbLogger
 
 import timm.optim.optim_factory as optim_factory
+from timm.layers import set_fused_attn
 
 import models_mae
 
@@ -271,10 +272,14 @@ class MAEBenchmarkModule(L.LightningModule):
         norm_pix_loss: bool,
         data_path: str = "",
         data_mode: str = "real",
+        compile_model: bool = False,
     ):
         super().__init__()
         self.save_hyperparameters()
+        set_fused_attn(True)  # enable SDPA / FlashAttention-2 in all timm attention layers
         self.model = models_mae.__dict__[model_name](norm_pix_loss=norm_pix_loss)
+        if compile_model:
+            self.model = torch.compile(self.model)
         self._oom_events = 0
 
     def on_train_start(self):
@@ -491,6 +496,8 @@ def get_args_parser():
     parser.add_argument("--input_size", default=224, type=int)
     parser.add_argument("--mask_ratio", default=0.75, type=float)
     parser.add_argument("--norm_pix_loss", action="store_true")
+    parser.add_argument("--compile", action="store_true",
+                        help="torch.compile the model (adds ~2 min warmup, then 15-30%% faster)")
 
     # Training duration
     parser.add_argument("--batch_size", default=512, type=int, help="Batch size per GPU")
@@ -600,6 +607,7 @@ def main(args):
         norm_pix_loss=args.norm_pix_loss,
         data_path=args.data_path if args.data_mode == "real" else "",
         data_mode=args.data_mode,
+        compile_model=args.compile,
     )
 
     if args.data_mode == "real":
