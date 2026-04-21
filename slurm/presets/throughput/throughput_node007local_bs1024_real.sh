@@ -32,6 +32,14 @@ export HF_DATASETS_CACHE=/scratch/.hf_home/datasets
 export TMPDIR=/scratch/tmp
 mkdir -p /scratch/.hf_home /scratch/tmp
 
+# torch.compile / Triton needs libcuda.so stub so GCC can link against -lcuda.
+# The real libcuda.so.1 is provided by the driver; the stub lives in the CUDA toolkit.
+export LIBRARY_PATH="/usr/local/cuda/lib64/stubs:${LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="/usr/local/cuda/lib64/stubs:${LD_LIBRARY_PATH:-}"
+# Cache compiled Triton kernels on fast local scratch (persists across jobs on this node).
+export TRITON_CACHE_DIR=/scratch/.triton_cache
+mkdir -p "$TRITON_CACHE_DIR"
+
 echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
 
 python "$REPO_DIR/train_benchmark_throughput.py" \
