@@ -42,6 +42,14 @@ mkdir -p "$TRITON_CACHE_DIR"
 
 echo "Job $SLURM_JOB_ID | Node $SLURMD_NODENAME | GPU $CUDA_VISIBLE_DEVICES"
 
+# --- background nvidia-smi monitor (independent of training process) ---
+NSMI_LOG="$REPO_DIR/logs/nvidia-smi-${SLURM_JOB_ID}.log"
+mkdir -p "$REPO_DIR/logs"
+nvidia-smi dmon -s put -d 1 > "$NSMI_LOG" &
+NSMI_PID=$!
+trap "kill $NSMI_PID 2>/dev/null; wait $NSMI_PID 2>/dev/null" EXIT
+echo "nvidia-smi dmon -> $NSMI_LOG (PID $NSMI_PID)"
+
 python "$REPO_DIR/train_benchmark_throughput.py" \
     --model mae_vit_base_patch16 \
     --batch_size 1024 \

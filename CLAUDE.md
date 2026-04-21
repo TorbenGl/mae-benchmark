@@ -54,18 +54,17 @@ The original codebase targeted timm 0.3.2 + PyTorch ~1.x. The following fixes ha
 - `main_pretrain.py` — removed `assert timm.__version__ == "0.3.2"`; `optim_factory.add_weight_decay` → `param_groups_weight_decay`
 - `models_vit.py` — fine-tuning only, not used in benchmark; may need further updates for full timm 1.x compatibility
 
-## Node Inventory (as of 2026-04-20)
+## Node Inventory (as of 2026-04-21)
 
 | Node | CPUs | RAM | GPU | Scratch | Partition | State |
 |---|---|---|---|---|---|---|
-| node005 | 64 | ~295 GB (TBC) | H200 NVL 140 GB | unknown — run `scontrol show node node005` | `gpu-node` | IDLE |
-| node007 | 64 | ~295 GB | H200 NVL 140 GB | `/scratch` (2 TB, `/dev/sdb1`, local) | `gpu-node` | IDLE |
+| node005 | 64 | 302 GB | H200 NVL 140 GB | unknown | `gpu-node` | IDLE |
+| node007 | 64 | 302 GB | H200 NVL 140 GB | `/scratch` (2 TB, `/dev/sdb1`, local) | `gpu-node` | IDLE |
+| node008 | 64 | 302 GB | H200 NVL 140 GB | unknown | `gpu-node`, `deffault` | IDLE |
 
-node007 confirmed via `scontrol`: CPUEfctv=64, RealMemory=302247 MB (~295 GB). Both nodes in partition `gpu-node`. Driver 590.48.01, CUDA 13.1. `/scratch` is local to each node — not mounted on the login node.
+All three nodes confirmed via `scontrol`: CPUEfctv=64, RealMemory=302247 MB, `Gres=gpu:nvidia_h200_nvl:1`. Partition `gpu-node` has `OverSubscribe=NO` — `--cpus-per-task` requests are dedicated cores. Driver 590.48.01, CUDA 13.1.
 
-The previous "remote vs local storage" distinction referred to `/datasets/imagenet21k` (shared network filesystem). Both nodes also have a large local `/scratch` — copy the dataset there to eliminate network I/O as a variable.
-
-node007 local scratch: `/scratch` — 2 TB dedicated disk (`/dev/sdb1`), nearly empty. Use `--data_path /scratch/imagenet21k` for node007 jobs to avoid network I/O.
+`/scratch` is local to each node — not mounted on the login node. Use `--data_path /scratch/imagenet21k_arrow` for node007 jobs to avoid NFS I/O.
 
 The low GPU utilization observed on node005 is suspected to be caused by remote storage — the data rack is not co-located. Use `io/dataloader_wait_ms` and `io/io_bound_ratio` in W&B to confirm.
 
