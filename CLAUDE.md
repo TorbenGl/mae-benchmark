@@ -68,6 +68,13 @@ All three nodes confirmed via `scontrol`: CPUEfctv=64, RealMemory=302247 MB, `Gr
 
 The low GPU utilization observed on node005 is suspected to be caused by remote storage — the data rack is not co-located. Use `io/dataloader_wait_ms` and `io/io_bound_ratio` in W&B to confirm.
 
+## Dataloader Architecture
+
+`train_benchmark_throughput.py` uses `_HFIterableDataset` — an `IterableDataset` that assigns each DataLoader worker a disjoint subset of Arrow shards for sequential IO. A shuffle buffer (default 2000, `--shuffle_buffer`) provides training randomness without random disk seeks. CLI args: `--num_workers`, `--prefetch_factor`, `--shuffle_buffer`.
+
+### Future: WebDataset (not yet implemented)
+If iterable sharding is still IO-bound, the next step is converting Arrow → WebDataset tar shards (one tar per shard, ~10k images each). WebDataset workers stream tar files sequentially with no seeking — optimal for both NVMe and spinning disk. Conversion script would read `/scratch/imagenet21k_arrow` and write `/scratch/imagenet21k_wds/shard-{000000..001400}.tar`. Library: `pip install webdataset`. This is the gold standard for large-scale training IO but requires a one-time ~2–4h data conversion job on node007.
+
 ## Benchmark Architecture
 
 `train_benchmark.py` uses PyTorch Lightning (`MAEBenchmarkModule` + `BenchmarkCallback`) wrapping the existing `MaskedAutoencoderViT`. W&B run names follow `{arch}-bs{batch_size}-{gpu_label}`. SBATCH presets are in `slurm/presets/locality/` (12 presets: ViT-B × 6 batch sizes × 2 nodes). Old presets archived in `slurm/presets/backup/`. See `slurm/USAGE.md` for full cluster operations guide.

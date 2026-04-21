@@ -394,32 +394,44 @@ class SyntheticDataModule(L.LightningDataModule):
         )
 
 
-class _HFImageDataset(torch.utils.data.Dataset):
-    """Thin wrapper that makes a HuggingFace Dataset behave like a torch Dataset."""
+class _HFIterableDataset(torch.utils.data.IterableDataset):
+    """Iterable HuggingFace dataset wrapper with per-worker shard assignment.
 
-    def __init__(self, hf_dataset, transform, image_col: str, label_col: str):
-        self.dataset = hf_dataset
+    Each DataLoader worker is assigned a disjoint subset of shards and reads
+    them sequentially — turning random seeks into sequential IO. A shuffle
+    buffer provides training randomness without disk seeks.
+    """
+
+    def __init__(self, hf_dataset, transform, image_col: str, label_col: str,
+                 num_workers: int, shuffle_buffer: int = 2000):
+        super().__init__()
+        num_shards = max(num_workers, 1)
+        self._ds = hf_dataset.to_iterable_dataset(num_shards=num_shards)
+        self._ds = self._ds.shuffle(buffer_size=shuffle_buffer, seed=42)
         self.transform = transform
         self.image_col = image_col
         self.label_col = label_col
+        self._num_workers = num_workers
 
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-        item = self.dataset[idx]
+    def _decode(self, item):
         img = item[self.image_col]
         if isinstance(img, (bytes, bytearray)):
-            # Use memoryview to avoid a copy; PIL can read directly from a buffer
-            img = PILImage.open(io.BytesIO(img))
-            if img.mode != "RGB":
-                img = img.convert("RGB")
+            img = PILImage.open(io.BytesIO(img)).convert("RGB")
         elif isinstance(img, PILImage.Image):
             if img.mode != "RGB":
                 img = img.convert("RGB")
         else:
             img = PILImage.fromarray(img).convert("RGB")
         return self.transform(img), item[self.label_col]
+
+    def __iter__(self):
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None and worker_info.num_workers > 1:
+            ds = self._ds.shard(num_shards=worker_info.num_workers, index=worker_info.id)
+        else:
+            ds = self._ds
+        for item in ds:
+            yield self._decode(item)
 
 
 class HFDataModule(L.LightningDataModule):
@@ -440,6 +452,7 @@ class HFDataModule(L.LightningDataModule):
         image_col: str = "image",
         label_col: str = "label",
         prefetch_factor: int = 4,
+        shuffle_buffer: int = 2000,
     ):
         super().__init__()
         self.data_path = data_path
@@ -450,6 +463,7 @@ class HFDataModule(L.LightningDataModule):
         self.image_col = image_col
         self.label_col = label_col
         self.prefetch_factor = prefetch_factor
+        self.shuffle_buffer = shuffle_buffer
 
     def setup(self, stage=None):
         try:
@@ -466,7 +480,11 @@ class HFDataModule(L.LightningDataModule):
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
-        self.dataset_train = _HFImageDataset(ds, transform, self.image_col, self.label_col)
+        self.dataset_train = _HFIterableDataset(
+            ds, transform, self.image_col, self.label_col,
+            num_workers=self.num_workers,
+            shuffle_buffer=self.shuffle_buffer,
+        )
 
     def train_dataloader(self):
         return torch.utils.data.DataLoader(
@@ -477,7 +495,7 @@ class HFDataModule(L.LightningDataModule):
             persistent_workers=True,
             prefetch_factor=self.prefetch_factor,
             drop_last=True,
-            shuffle=(self.trainer.world_size == 1),
+            # No shuffle= — IterableDataset handles randomness via shuffle buffer
         )
 
 
@@ -535,6 +553,9 @@ def get_args_parser():
     parser.add_argument("--prefetch_factor", default=4, type=int,
                         help="DataLoader prefetch depth (default 4). "
                              "Higher reduces GPU wait but increases CPU RAM usage.")
+    parser.add_argument("--shuffle_buffer", default=2000, type=int,
+                        help="Iterable dataset shuffle buffer size per worker (default 2000). "
+                             "Higher = better shuffle quality, more RAM.")
 
     # Output / logging
     parser.add_argument("--output_dir", default="./outputs", type=str)
@@ -620,6 +641,7 @@ def main(args):
             image_col=args.image_col,
             label_col=args.label_col,
             prefetch_factor=args.prefetch_factor,
+            shuffle_buffer=args.shuffle_buffer,
         )
     else:
         datamodule = SyntheticDataModule(
