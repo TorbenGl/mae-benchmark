@@ -407,11 +407,13 @@ class _HFIterableDataset(torch.utils.data.IterableDataset):
         super().__init__()
         num_shards = max(num_workers, 1)
         self._ds = hf_dataset.to_iterable_dataset(num_shards=num_shards)
-        self._ds = self._ds.shuffle(buffer_size=shuffle_buffer, seed=42)
+        # Shuffle is applied per-worker in __iter__ (after shard), not globally here.
+        # Global pre-shard shuffle forces each worker to drain a shared buffer first.
         self.transform = transform
         self.image_col = image_col
         self.label_col = label_col
         self._num_workers = num_workers
+        self._shuffle_buffer = shuffle_buffer
 
     def _decode(self, item):
         img = item[self.image_col]
@@ -430,6 +432,11 @@ class _HFIterableDataset(torch.utils.data.IterableDataset):
             ds = self._ds.shard(num_shards=worker_info.num_workers, index=worker_info.id)
         else:
             ds = self._ds
+        # Shuffle per-worker after shard: each worker shuffles only its own subset,
+        # so the buffer is proportionally smaller and warm-up is N× faster.
+        if self._shuffle_buffer > 0:
+            worker_seed = 42 if worker_info is None else 42 + worker_info.id
+            ds = ds.shuffle(buffer_size=self._shuffle_buffer, seed=worker_seed)
         for item in ds:
             yield self._decode(item)
 
